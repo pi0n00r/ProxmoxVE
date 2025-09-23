@@ -56,7 +56,7 @@ function update_script() {
   cd nginx-proxy-manager-"${RELEASE}" || exit
   msg_ok "Downloaded NPM v${RELEASE}"
 
-  # Build frontend (no $STD suppression)
+  # Build frontend
   msg_info "Building Frontend"
   (
     sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
@@ -265,7 +265,7 @@ if [ ! -f /app/config/production.json ]; then
 EOF
 fi
 cd /app || exit
-$STD pnpm install
+pnpm install
 msg_ok "Initialized Backend"
 
 # Start services with LXC patches
