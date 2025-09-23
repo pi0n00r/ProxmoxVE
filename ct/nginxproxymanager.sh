@@ -216,10 +216,11 @@ msg_info "Building Frontend"
 (
   sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
   sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" frontend/package.json
+  export NODE_OPTIONS=--openssl-legacy-provider
   cd ./frontend || exit
-  $STD pnpm install
-  $STD pnpm upgrade
-  $STD pnpm run build
+  pnpm install --no-frozen-lockfile
+  pnpm upgrade
+  pnpm run build
 )
 msg_ok "Built Frontend"
 
