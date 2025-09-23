@@ -24,6 +24,7 @@ function update_script() {
   header_info
   check_container_storage
   check_container_resources
+
   if [[ ! -f /lib/systemd/system/npm.service ]]; then
     msg_error "No ${APP} Installation Found!"
     exit
@@ -37,30 +38,44 @@ function update_script() {
     msg_ok "Installed pnpm"
   fi
 
+  # Ensure Node.js 22 via nvm
+  export NVM_DIR="$HOME/.nvm"
+  if [ ! -d "$NVM_DIR" ]; then
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+    . "$NVM_DIR/nvm.sh"
+  fi
+  nvm install 22
+  nvm use 22
+
+  # Fetch latest release
   RELEASE=$(curl -fsSL https://api.github.com/repos/NginxProxyManager/nginx-proxy-manager/releases/latest \
     | grep "tag_name" | awk '{print substr($2, 3, length($2)-4) }')
+
   msg_info "Downloading NPM v${RELEASE}"
   curl -fsSL "https://codeload.github.com/NginxProxyManager/nginx-proxy-manager/tar.gz/v${RELEASE}" | tar -xz
   cd nginx-proxy-manager-"${RELEASE}" || exit
   msg_ok "Downloaded NPM v${RELEASE}"
 
-msg_info "Building Frontend"
-(
-  sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
-  sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" frontend/package.json
-  export NODE_OPTIONS=--openssl-legacy-provider
-  cd ./frontend || exit
-  pnpm install --no-frozen-lockfile
-  pnpm upgrade
-  pnpm run build
-)
-msg_ok "Built Frontend"
+  # Build frontend (no $STD suppression)
+  msg_info "Building Frontend"
+  (
+    sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
+    sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" frontend/package.json
+    export NODE_OPTIONS=--openssl-legacy-provider
+    cd ./frontend || exit
+    pnpm install --no-frozen-lockfile
+    pnpm upgrade
+    pnpm run build
+  )
+  msg_ok "Built Frontend"
 
+  # Stop services
   msg_info "Stopping Services"
   systemctl stop openresty
   systemctl stop npm
   msg_ok "Stopped Services"
 
+  # Clean old files
   msg_info "Cleaning Old Files"
   rm -rf /app \
          /var/www/html \
@@ -70,10 +85,12 @@ msg_ok "Built Frontend"
          /var/cache/nginx
   msg_ok "Cleaned Old Files"
 
+  # Environment setup
   setup_environment "$RELEASE"
 
+  # Initialize backend
   msg_info "Initializing Backend"
-  $STD rm -rf /app/config/default.json
+  rm -rf /app/config/default.json
   if [ ! -f /app/config/production.json ]; then
     cat <<'EOF' >/app/config/production.json
 {
@@ -90,9 +107,10 @@ msg_ok "Built Frontend"
 EOF
   fi
   cd /app || exit
-  $STD pnpm install
+  pnpm install
   msg_ok "Initialized Backend"
 
+  # Start services
   msg_info "Starting Services"
   sed -i 's/user npm/user root/g; s/^pid/#pid/g' /usr/local/openresty/nginx/conf/nginx.conf
   sed -i 's/su npm npm/su root root/g' /etc/logrotate.d/nginx-proxy-manager
@@ -101,9 +119,11 @@ EOF
   systemctl enable -q --now npm
   msg_ok "Started Services"
 
+  # Cleanup
   msg_info "Cleaning up"
   rm -rf ~/nginx-proxy-manager-*
   msg_ok "Cleaned"
+
   msg_ok "Updated Successfully"
   exit
 }
