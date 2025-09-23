@@ -146,4 +146,6 @@ systemctl enable --now openresty
 systemctl enable --now npm
 
 echo "=== Build complete ==="
-echo "Access Nginx Proxy Manager at: http://<IP>:81"
+echo "Nginx Proxy Manager setup has been successfully initialized!"
+echo "Access it using the following URL:"
+echo "    http://$(hostname -I | awk '{print $1}'):81"
