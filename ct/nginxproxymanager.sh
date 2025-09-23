@@ -1,125 +1,44 @@
 #!/usr/bin/env bash
-source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/build.func)
-# Copyright (c) 2021-2025 tteck
-# Author: tteck (tteckster)
-# License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
-# Source: https://nginxproxymanager.com/
+set -e
 
 APP="Nginx Proxy Manager"
-var_tags="${var_tags:-proxy}"
-var_cpu="${var_cpu:-2}"
-var_ram="${var_ram:-1024}"
-var_disk="${var_disk:-4}"
-var_os="${var_os:-debian}"
-var_version="${var_version:-12}"
-var_unprivileged="${var_unprivileged:-1}"
 
-header_info "$APP"
-variables
-color
-catch_errors
+echo "=== Installing prerequisites ==="
+apt update && apt install -y curl git python3 python3-pip build-essential openssl
 
-function update_script() {
-  header_info
-  check_container_storage
-  check_container_resources
-  if [[ ! -f /lib/systemd/system/npm.service ]]; then
-    msg_error "No ${APP} Installation Found!"
-    exit
-  fi
+echo "=== Installing Node.js via nvm ==="
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install 22
+nvm alias default 22
 
-  if ! command -v pnpm &>/dev/null; then
-    msg_info "Installing pnpm"
-    #export NODE_OPTIONS=--openssl-legacy-provider
-    $STD npm install -g pnpm@8.15
-    msg_ok "Installed pnpm"
-  fi
+echo "=== Updating npm and enabling Corepack ==="
+npm install -g npm@latest
+corepack enable
+corepack prepare pnpm@latest --activate
 
-  RELEASE=$(curl -fsSL https://api.github.com/repos/NginxProxyManager/nginx-proxy-manager/releases/latest |
-    grep "tag_name" |
-    awk '{print substr($2, 3, length($2)-4) }')
+echo "=== Fetching latest NPM release ==="
+RELEASE=$(curl -fsSL https://api.github.com/repos/NginxProxyManager/nginx-proxy-manager/releases/latest \
+  | grep "tag_name" | cut -d '"' -f4 | sed 's/^v//')
+curl -fsSL "https://codeload.github.com/NginxProxyManager/nginx-proxy-manager/tar.gz/v${RELEASE}" \
+  | tar -xz
+cd nginx-proxy-manager-"${RELEASE}"
 
-  msg_info "Downloading NPM v${RELEASE}"
-  curl -fsSL "https://codeload.github.com/NginxProxyManager/nginx-proxy-manager/tar.gz/v${RELEASE}" | tar -xz
-  cd nginx-proxy-manager-"${RELEASE}" || exit
-  msg_ok "Downloaded NPM v${RELEASE}"
+echo "=== Building frontend ==="
+sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
+sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" frontend/package.json
+cd frontend
+pnpm install
+pnpm upgrade
+pnpm run build
+cd ..
 
-  msg_info "Building Frontend"
-  (
-    sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
-    sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" frontend/package.json
-    cd ./frontend || exit
-    $STD pnpm install
-    $STD pnpm upgrade
-    $STD pnpm run build
-  )
-  msg_ok "Built Frontend"
-
-  msg_info "Stopping Services"
-  systemctl stop openresty
-  systemctl stop npm
-  msg_ok "Stopped Services"
-
-  msg_info "Cleaning Old Files"
-  rm -rf /app \
-    /var/www/html \
-    /etc/nginx \
-    /var/log/nginx \
-    /var/lib/nginx \
-    "$STD" /var/cache/nginx
-  msg_ok "Cleaned Old Files"
-
-  msg_info "Setting up Environment"
-  ln -sf /usr/bin/python3 /usr/bin/python
-  ln -sf /usr/bin/certbot /opt/certbot/bin/certbot
-  ln -sf /usr/local/openresty/nginx/sbin/nginx /usr/sbin/nginx
-  ln -sf /usr/local/openresty/nginx/ /etc/nginx
-  sed -i 's+^daemon+#daemon+g' docker/rootfs/etc/nginx/nginx.conf
-  NGINX_CONFS=$(find "$(pwd)" -type f -name "*.conf")
-  for NGINX_CONF in $NGINX_CONFS; do
-    sed -i 's+include conf.d+include /etc/nginx/conf.d+g' "$NGINX_CONF"
-  done
-  mkdir -p /var/www/html /etc/nginx/logs
-  cp -r docker/rootfs/var/www/html/* /var/www/html/
-  cp -r docker/rootfs/etc/nginx/* /etc/nginx/
-  cp docker/rootfs/etc/letsencrypt.ini /etc/letsencrypt.ini
-  cp docker/rootfs/etc/logrotate.d/nginx-proxy-manager /etc/logrotate.d/nginx-proxy-manager
-  ln -sf /etc/nginx/nginx.conf /etc/nginx/conf/nginx.conf
-  rm -f /etc/nginx/conf.d/dev.conf
-  mkdir -p /tmp/nginx/body \
-    /run/nginx \
-    /data/nginx \
-    /data/custom_ssl \
-    /data/logs \
-    /data/access \
-    /data/nginx/default_host \
-    /data/nginx/default_www \
-    /data/nginx/proxy_host \
-    /data/nginx/redirection_host \
-    /data/nginx/stream \
-    /data/nginx/dead_host \
-    /data/nginx/temp \
-    /var/lib/nginx/cache/public \
-    /var/lib/nginx/cache/private \
-    /var/cache/nginx/proxy_temp
-  chmod -R 777 /var/cache/nginx
-  chown root /tmp/nginx
-  echo resolver "$(awk 'BEGIN{ORS=" "} $1=="nameserver" {print ($2 ~ ":")? "["$2"]": $2}' /etc/resolv.conf);" >/etc/nginx/conf.d/include/resolvers.conf
-  if [ ! -f /data/nginx/dummycert.pem ] || [ ! -f /data/nginx/dummykey.pem ]; then
-    $STD openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 -subj "/O=Nginx Proxy Manager/OU=Dummy Certificate/CN=localhost" -keyout /data/nginx/dummykey.pem -out /data/nginx/dummycert.pem
-  fi
-  mkdir -p /app/global /app/frontend/images
-  cp -r frontend/dist/* /app/frontend
-  cp -r frontend/app-images/* /app/frontend/images
-  cp -r backend/* /app
-  cp -r global/* /app/global
-  $STD python3 -m pip install --no-cache-dir --break-system-packages certbot-dns-cloudflare
-  msg_ok "Setup Environment"
-
-  msg_info "Initializing Backend"
-  $STD rm -rf /app/config/default.json
-  if [ ! -f /app/config/production.json ]; then
-    cat <<'EOF' >/app/config/production.json
+echo "=== Initializing backend ==="
+rm -rf /app/config/default.json || true
+if [ ! -f /app/config/production.json ]; then
+  mkdir -p /app/config
+  cat <<'EOF' >/app/config/production.json
 {
   "database": {
     "engine": "knex-native",
@@ -132,32 +51,99 @@ function update_script() {
   }
 }
 EOF
-  fi
-  cd /app || exit
-  $STD pnpm install
-  msg_ok "Initialized Backend"
+fi
+cd backend
+pnpm install
+cd ..
 
-  msg_info "Starting Services"
-  sed -i 's/user npm/user root/g; s/^pid/#pid/g' /usr/local/openresty/nginx/conf/nginx.conf
-  sed -i 's/su npm npm/su root root/g' /etc/logrotate.d/nginx-proxy-manager
-  sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' /opt/certbot/pyvenv.cfg
-  systemctl enable -q --now openresty
-  systemctl enable -q --now npm
-  msg_ok "Started Services"
+echo "=== Setting up environment ==="
+mkdir -p /app /data /etc/nginx /var/www/html
+mkdir -p /tmp/nginx/body /run/nginx
+mkdir -p /data/nginx/{default_host,default_www,proxy_host,redirection_host,stream,dead_host,temp}
+mkdir -p /data/{custom_ssl,logs,access}
+mkdir -p /var/lib/nginx/cache/{public,private} /var/cache/nginx/proxy_temp
+chmod -R 777 /var/cache/nginx
+chown root /tmp/nginx
 
-  msg_info "Cleaning up"
-  rm -rf ~/nginx-proxy-manager-*
-  msg_ok "Cleaned"
+# Symlinks
+ln -sf /usr/bin/python3 /usr/bin/python
+ln -sf /usr/bin/certbot /opt/certbot/bin/certbot
+ln -sf /usr/local/openresty/nginx/sbin/nginx /usr/sbin/nginx
+ln -sf /usr/local/openresty/nginx/ /etc/nginx
 
-  msg_ok "Updated Successfully"
-  exit
-}
+# Copy configs
+cp -r docker/rootfs/var/www/html/* /var/www/html/
+cp -r docker/rootfs/etc/nginx/* /etc/nginx/
+cp docker/rootfs/etc/letsencrypt.ini /etc/letsencrypt.ini
+cp docker/rootfs/etc/logrotate.d/nginx-proxy-manager /etc/logrotate.d/nginx-proxy-manager
+ln -sf /etc/nginx/nginx.conf /etc/nginx/conf/nginx.conf
+rm -f /etc/nginx/conf.d/dev.conf
 
-start
-build_container
-description
+# DNS resolvers
+echo resolver "$(awk 'BEGIN{ORS=" "} $1=="nameserver" {print ($2 ~ ":")? "["$2"]": $2}' /etc/resolv.conf);" \
+  >/etc/nginx/conf.d/include/resolvers.conf
 
-msg_ok "Completed Successfully!\n"
-echo -e "${CREATING}${GN}${APP} setup has been successfully initialized!${CL}"
-echo -e "${INFO}${YW} Access it using the following URL:${CL}"
-echo -e "${TAB}${GATEWAY}${BGN}http://${IP}:81${CL}"
+# Dummy SSL certs
+if [ ! -f /data/nginx/dummycert.pem ] || [ ! -f /data/nginx/dummykey.pem ]; then
+  openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+    -subj "/O=Nginx Proxy Manager/OU=Dummy Certificate/CN=localhost" \
+    -keyout /data/nginx/dummykey.pem \
+    -out /data/nginx/dummycert.pem
+fi
+
+# Copy built app
+mkdir -p /app/global /app/frontend/images
+cp -r frontend/dist/* /app/frontend
+cp -r frontend/app-images/* /app/frontend/images
+cp -r backend/* /app
+cp -r global/* /app/global
+
+echo "=== Creating systemd services ==="
+
+cat >/etc/systemd/system/openresty.service <<'EOF'
+[Unit]
+Description=OpenResty Web Platform
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/run/nginx.pid
+ExecStartPre=/usr/local/openresty/nginx/sbin/nginx -t -q -g 'daemon on; master_process on;'
+ExecStart=/usr/local/openresty/nginx/sbin/nginx -g 'daemon on; master_process on;'
+ExecReload=/usr/local/openresty/nginx/sbin/nginx -g 'daemon on; master_process on;' -s reload
+ExecStop=/usr/local/openresty/nginx/sbin/nginx -s quit
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat >/etc/systemd/system/npm.service <<'EOF'
+[Unit]
+Description=Nginx Proxy Manager Backend
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/app
+ExecStart=/usr/bin/node /app/index.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "=== Patching configs for LXC ==="
+sed -i 's/user npm/user root/g; s/^pid/#pid/g' /usr/local/openresty/nginx/conf/nginx.conf
+sed -i 's/su npm npm/su root root/g' /etc/logrotate.d/nginx-proxy-manager
+
+echo "=== Starting services ==="
+systemctl daemon-reload
+systemctl enable --now openresty
+systemctl enable --now npm
+
+echo "=== Build complete ==="
+echo "Access Nginx Proxy Manager at: http://<IP>:81"
