@@ -48,6 +48,7 @@ function update_script() {
   (
     sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" backend/package.json
     sed -i "s|\"version\": \"0.0.0\"|\"version\": \"$RELEASE\"|" frontend/package.json
+    export NODE_OPTIONS=--openssl-legacy-provider
     cd ./frontend || exit
     $STD pnpm install
     $STD pnpm upgrade
