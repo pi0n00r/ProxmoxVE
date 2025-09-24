@@ -28,15 +28,6 @@ function update_script() {
     exit
   fi
 
-  # Ensure pnpm via Corepack
-  if ! command -v pnpm &>/dev/null; then
-    msg_info "Installing pnpm via Corepack"
-    #export NODE_OPTIONS=--openssl-legacy-provider
-    corepack enable
-    corepack prepare pnpm@latest --activate
-    msg_ok "Installed pnpm"
-  fi
-
   # Ensure Node.js 22 via nvm
   export NVM_DIR="$HOME/.nvm"
   if [ ! -d "$NVM_DIR" ]; then
@@ -45,6 +36,15 @@ function update_script() {
   fi
   nvm install 22
   nvm use 22
+  
+  # Ensure pnpm via Corepack
+  if ! command -v pnpm &>/dev/null; then
+    msg_info "Installing pnpm via Corepack"
+    #export NODE_OPTIONS=--openssl-legacy-provider
+    corepack enable
+    corepack prepare pnpm@latest --activate
+    msg_ok "Installed pnpm"
+  fi
 
   RELEASE=$(curl -fsSL https://api.github.com/repos/NginxProxyManager/nginx-proxy-manager/releases/latest |
     grep "tag_name" |
