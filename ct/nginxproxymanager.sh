@@ -132,69 +132,31 @@ setup_environment() {
   RELEASE=$1
   msg_info "Setting up Environment"
 
-  # Symlinks
-  ln -sf /usr/bin/python3 /usr/bin/python
-  ln -sf /usr/bin/certbot /opt/certbot/bin/certbot
+  # Ensure Python is cleanly installed
+  apt-get update
+  apt-get install -y python3 python3-pip python-is-python3
+
+  # Symlinks (only if missing)
+  [ -x /usr/bin/python ] || ln -sf /usr/bin/python3 /usr/bin/python
+  [ -x /usr/bin/certbot ] && mkdir -p /opt/certbot/bin && ln -sf /usr/bin/certbot /opt/certbot/bin/certbot
   ln -sf /usr/local/openresty/nginx/sbin/nginx /usr/sbin/nginx
   ln -sf /usr/local/openresty/nginx/ /etc/nginx
 
-  # Nginx tweaks applied to repo config before copy
-  sed -i 's+^daemon+#daemon+g' docker/rootfs/etc/nginx/nginx.conf
-  NGINX_CONFS=$(find "$(pwd)" -type f -name "*.conf")
-  for NGINX_CONF in $NGINX_CONFS; do
-    sed -i 's+include conf.d+include /etc/nginx/conf.d+g' "$NGINX_CONF"
-  done
-
-  # Copy configs
-  mkdir -p /var/www/html /etc/nginx/logs
-  cp -r docker/rootfs/var/www/html/* /var/www/html/
-  cp -r docker/rootfs/etc/nginx/* /etc/nginx/
-  cp docker/rootfs/etc/letsencrypt.ini /etc/letsencrypt.ini
-  cp docker/rootfs/etc/logrotate.d/nginx-proxy-manager /etc/logrotate.d/nginx-proxy-manager
-  ln -sf /etc/nginx/nginx.conf /etc/nginx/conf/nginx.conf
-  rm -f /etc/nginx/conf.d/dev.conf
-
-  # Directories
-  mkdir -p /tmp/nginx/body \
-           /run/nginx \
-           /data/nginx \
-           /data/custom_ssl \
-           /data/logs \
-           /data/access \
-           /data/nginx/default_host \
-           /data/nginx/default_www \
-           /data/nginx/proxy_host \
-           /data/nginx/redirection_host \
-           /data/nginx/stream \
-           /data/nginx/dead_host \
-           /data/nginx/temp \
-           /var/lib/nginx/cache/public \
-           /var/lib/nginx/cache/private \
-           /var/cache/nginx/proxy_temp
-  chmod -R 777 /var/cache/nginx
-  chown root /tmp/nginx
-
-  # DNS resolvers include
-  echo resolver "$(awk 'BEGIN{ORS=" "} $1=="nameserver" {print ($2 ~ ":")? "["$2"]": $2}' /etc/resolv.conf);" \
-    >/etc/nginx/conf.d/include/resolvers.conf
-
   # Dummy SSL certificates
   if [ ! -f /data/nginx/dummycert.pem ] || [ ! -f /data/nginx/dummykey.pem ]; then
-    $STD openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+    openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
       -subj "/O=Nginx Proxy Manager/OU=Dummy Certificate/CN=localhost" \
       -keyout /data/nginx/dummykey.pem \
       -out /data/nginx/dummycert.pem
   fi
 
-  # Copy built app
-  mkdir -p /app/global /app/frontend/images
-  cp -r frontend/dist/* /app/frontend
-  cp -r frontend/app-images/* /app/frontend/images
-  cp -r backend/* /app
-  cp -r global/* /app/global
+  # Install certbot DNS plugin in user space (avoids system pip issues)
+  python3 -m pip install --user --no-cache-dir certbot-dns-cloudflare
 
-  # Certbot DNS plugin (matches upstream)
-  $STD python3 -m pip install --no-cache-dir --break-system-packages certbot-dns-cloudflare
+  # Guarded patch for certbot venv (only if it exists)
+  if [ -f /opt/certbot/pyvenv.cfg ]; then
+    sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' /opt/certbot/pyvenv.cfg
+  fi
 
   msg_ok "Setup Environment"
 }
