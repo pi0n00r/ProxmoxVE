@@ -151,11 +151,11 @@ setup_environment() {
   fi
 
   # Install certbot DNS plugin in user space (avoids system pip issues)
-  python3 -m pip install --user --no-cache-dir certbot-dns-cloudflare
+  python3 -m pip install --no-cache-dir certbot-dns-cloudflare || true
 
   # Guarded patch for certbot venv (only if it exists)
-  if [ -f /opt/certbot/pyvenv.cfg ]; then
-    sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' /opt/certbot/pyvenv.cfg
+  if [ -f /opt/certbot/pyvenv.cfg ] && \
+  sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' /opt/certbot/pyvenv.cfg
   fi
 
   msg_ok "Setup Environment"
