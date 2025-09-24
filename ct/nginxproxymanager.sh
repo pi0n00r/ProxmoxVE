@@ -28,15 +28,17 @@ function update_script() {
     exit
   fi
 
-  # Ensure Node.js 22 via nvm
-  export NVM_DIR="$HOME/.nvm"
-  if [ ! -d "$NVM_DIR" ]; then
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
-    . "$NVM_DIR/nvm.sh"
+  # Use system-provided Node.js
+  if ! command -v node >/dev/null; then
+    echo "Error: Node.js is not installed on this system."
+    echo "Please install Node.js (e.g., apt install nodejs npm) before running this script."
+    exit 1
   fi
-  nvm install 22
-  nvm use 22
   
+  # Log version for reproducibility
+  echo "Using system Node.js: $(node -v)"
+  echo "Using system npm: $(npm -v)"
+
   # Ensure pnpm via Corepack
   if ! command -v pnpm &>/dev/null; then
     msg_info "Installing pnpm via Corepack"
