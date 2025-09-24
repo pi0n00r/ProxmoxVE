@@ -166,9 +166,9 @@ EOF
   exit
 
   # Guarded patch for certbot venv (only if it exists)
-  if [ -f /opt/certbot/pyvenv.cfg ] && \
-    sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' /opt/certbot/pyvenv.cfg \
-  fi
+#  if [ -f /opt/certbot/pyvenv.cfg ] && \
+#    sed -i 's/include-system-site-packages = false/include-system-site-packages = true/g' /opt/certbot/pyvenv.cfg
+#  fi
 }
 
 start
