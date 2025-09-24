@@ -10,7 +10,52 @@
 > [!CAUTION]
 Exercise vigilance regarding copycat or coat-tailing sites that seek to exploit the project's popularity for potentially malicious purposes.
 
+## 2025-09-24
+
 ## 2025-09-23
+
+### 🆕 New Scripts
+
+  - UpSnap ([#7825](https://github.com/community-scripts/ProxmoxVE/pull/7825))
+
+### 🚀 Updated Scripts
+
+  - #### 🐞 Bug Fixes
+
+    - tools.func: Check for /usr/local/bin in PATH during yq setup [@vhsdream](https://github.com/vhsdream) ([#7856](https://github.com/community-scripts/ProxmoxVE/pull/7856))
+    - BookLore: increase RAM [@vhsdream](https://github.com/vhsdream) ([#7855](https://github.com/community-scripts/ProxmoxVE/pull/7855))
+    - Bump Immich to v1.143.1 [@vhsdream](https://github.com/vhsdream) ([#7864](https://github.com/community-scripts/ProxmoxVE/pull/7864))
+    - zabbix: Remove not exist admin credentials from output [@MickLesk](https://github.com/MickLesk) ([#7849](https://github.com/community-scripts/ProxmoxVE/pull/7849))
+    - Suppress wrong errors from uv shell integration in setup_uv [@MickLesk](https://github.com/MickLesk) ([#7822](https://github.com/community-scripts/ProxmoxVE/pull/7822))
+    - Refactor Caddyfile configuration for headscale-admin [@MickLesk](https://github.com/MickLesk) ([#7821](https://github.com/community-scripts/ProxmoxVE/pull/7821))
+    - Improve subscription element removal (mobile) in post-pve script [@MickLesk](https://github.com/MickLesk) ([#7814](https://github.com/community-scripts/ProxmoxVE/pull/7814))
+    - Blocky: Fix release fetching [@tremor021](https://github.com/tremor021) ([#7807](https://github.com/community-scripts/ProxmoxVE/pull/7807))
+
+  - #### ✨ New Features
+
+    - Improve globaleaks install ensuring install can proceed without user … [@evilaliv3](https://github.com/evilaliv3) ([#7860](https://github.com/community-scripts/ProxmoxVE/pull/7860))
+    - Manage My Damn Life: use NodeJS 22 [@vhsdream](https://github.com/vhsdream) ([#7861](https://github.com/community-scripts/ProxmoxVE/pull/7861))
+    - VM: Increase pv & xz functions (HA OS / Umbrel OS) [@MickLesk](https://github.com/MickLesk) ([#7838](https://github.com/community-scripts/ProxmoxVE/pull/7838))
+    - Tandoor: update for newer dependencies (psql) + bump nodejs to 22 [@MickLesk](https://github.com/MickLesk) ([#7826](https://github.com/community-scripts/ProxmoxVE/pull/7826))
+    - Update Monica and Outline to use Node.js 22 [@MickLesk](https://github.com/MickLesk) ([#7833](https://github.com/community-scripts/ProxmoxVE/pull/7833))
+    - Update Zabbix install for Debian 13 and agent selection [@MickLesk](https://github.com/MickLesk) ([#7819](https://github.com/community-scripts/ProxmoxVE/pull/7819))
+    - tracktor: bump to debian 13 | feature bump [@CrazyWolf13](https://github.com/CrazyWolf13) ([#7818](https://github.com/community-scripts/ProxmoxVE/pull/7818))
+    - LiteLLM: Bump to Debian 13 & add deps [@MickLesk](https://github.com/MickLesk) ([#7815](https://github.com/community-scripts/ProxmoxVE/pull/7815))
+    - Immich: bump to v1.143.0 [@vhsdream](https://github.com/vhsdream) ([#7801](https://github.com/community-scripts/ProxmoxVE/pull/7801))
+
+### 🧰 Maintenance
+
+  - #### 📂 Github
+
+    - gh: remove ai autolabel test [@MickLesk](https://github.com/MickLesk) ([#7817](https://github.com/community-scripts/ProxmoxVE/pull/7817))
+
+### 🌐 Website
+
+  - #### 📝 Script Information
+
+    - OpenWebUI: Add information about Ollama [@tremor021](https://github.com/tremor021) ([#7843](https://github.com/community-scripts/ProxmoxVE/pull/7843))
+    - cosmos: add info note for configuration file [@MickLesk](https://github.com/MickLesk) ([#7824](https://github.com/community-scripts/ProxmoxVE/pull/7824))
+    - ElementSynapse: add note for Bridge Install Methods [@MickLesk](https://github.com/MickLesk) ([#7820](https://github.com/community-scripts/ProxmoxVE/pull/7820))
 
 ## 2025-09-22
 
