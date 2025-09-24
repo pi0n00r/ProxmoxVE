@@ -49,7 +49,7 @@ EOF
 
 post_to_api_vm() {
 
-  if [[ ! -f /usr/local/community-scripts/diagnostics ]]; then
+  if [[ ! -f /usr/local/pi0n00r/diagnostics ]]; then
     return
   fi
   DIAGNOSTICS=$(grep -i "^DIAGNOSTICS=" /usr/local/community-scripts/diagnostics | awk -F'=' '{print $2}')
